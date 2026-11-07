@@ -1,0 +1,2075 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Associação Beneficente Novo Horizonte - Gestão de Suprimentos</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#ecfdf5',
+                            100: '#d1fae5',
+                            500: '#10b981',
+                            600: '#059669',
+                            700: '#047857',
+                            800: '#065f46',
+                            900: '#064e3b',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- SheetJS (xlsx) for Excel Export -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        /* Custom scrollbars */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { background: white; color: black; }
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col font-sans antialiased text-slate-800">
+
+    <!-- TOP GLOBAL NAVIGATION / MODE SWITCHER -->
+    <header class="no-print bg-brand-800 text-white shadow-md z-40 sticky top-0">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Brand Info -->
+                <div class="flex items-center space-x-3 cursor-pointer" onclick="switchView('kitchen')">
+                    <div class="bg-white p-2 rounded-xl text-brand-700 shadow-inner">
+                        <i data-lucide="heart-handshake" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-lg leading-tight tracking-tight">ASSOCIAÇÃO BENEFICENTE</h1>
+                        <p class="text-xs text-brand-200 font-medium tracking-wide">NOVO HORIZONTE • GESTÃO DE SUPRIMENTOS</p>
+                    </div>
+                </div>
+
+                <!-- Navigation Switcher Buttons -->
+                <div class="flex items-center space-x-2 sm:space-x-4">
+                    <button id="nav-btn-kitchen" onclick="switchView('kitchen')" 
+                        class="px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center space-x-2 bg-white/20 text-white shadow-sm border border-white/10">
+                        <i data-lucide="utensils" class="w-4 h-4"></i>
+                        <span class="hidden sm:inline">Portal Cozinhas</span>
+                        <span class="sm:hidden">Cozinhas</span>
+                    </button>
+                    
+                    <button id="nav-btn-admin" onclick="switchView('admin')" 
+                        class="px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center space-x-2 hover:bg-white/10 text-brand-100">
+                        <i data-lucide="shield-check" class="w-4 h-4"></i>
+                        <span class="hidden sm:inline">Painel Administrativo</span>
+                        <span class="sm:hidden">Painel Admin</span>
+                    </button>
+
+                    <button onclick="openDocsModal()" 
+                        class="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg text-xs font-semibold bg-emerald-950/60 hover:bg-emerald-900 text-emerald-200 flex items-center space-x-1 border border-emerald-500/30" title="Ver Arquitetura SQL / Python">
+                        <i data-lucide="database" class="w-4 h-4"></i>
+                        <span class="hidden md:inline">SQL / Dev</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT CONTAINER -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+
+        <!-- ========================================== -->
+        <!-- 1. INTERFACE DAS COZINHAS (SOLICITAÇÃO)     -->
+        <!-- ========================================== -->
+        <section id="kitchen-view" class="space-y-6">
+            <!-- Header Banner -->
+            <div class="bg-gradient-to-r from-brand-700 to-emerald-600 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
+                <div class="absolute -right-10 -bottom-10 opacity-10 pointer-events-none">
+                    <i data-lucide="shopping-basket" class="w-64 h-64"></i>
+                </div>
+                <div class="relative z-10 max-w-2xl">
+                    <span class="bg-white/20 text-white text-xs px-3 py-1 rounded-full font-semibold tracking-wide uppercase">Formulário Oficial de Pedidos</span>
+                    <h2 class="text-2xl sm:text-3xl font-extrabold mt-2">Solicitação de Alimentos e Materiais</h2>
+                    <p class="text-brand-100 text-sm mt-1">Preencha com atenção as quantidades necessárias para o abastecimento da sua unidade. O pedido será processado pela administração central.</p>
+                </div>
+            </div>
+
+            <form id="request-form" onsubmit="handleFormSubmit(event)" class="space-y-6">
+                <!-- Identification Card -->
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 space-y-4">
+                    <div class="flex items-center space-x-2 border-b border-slate-100 pb-3">
+                        <i data-lucide="building" class="w-5 h-5 text-brand-600"></i>
+                        <h3 class="font-bold text-slate-800 text-lg">Identificação da Solicitação</h3>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Unidade Solicitante *</label>
+                            <select id="kitchen-unit-select" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-800 focus:ring-2 focus:ring-brand-500 focus:bg-white outline-none transition">
+                                <option value="">-- Selecione a Unidade --</option>
+                                <!-- Populated dynamically -->
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Responsável pelo Pedido *</label>
+                            <input type="text" id="kitchen-responsible" required placeholder="Nome completo do(a) responsável" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-800 focus:ring-2 focus:ring-brand-500 focus:bg-white outline-none transition">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Data e Horário</label>
+                            <input type="text" id="kitchen-datetime" readonly class="w-full bg-slate-100 border border-slate-200 text-slate-500 font-semibold rounded-xl px-3 py-2.5 text-sm outline-none cursor-not-allowed">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Product Categories Container -->
+                <div class="space-y-6">
+
+                    <!-- Category Tabs / Section Cards -->
+                    <!-- Cat 1: Alimentos Não Perecíveis -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+                        <div class="bg-amber-500/10 border-b border-amber-500/20 px-6 py-4 flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="bg-amber-500 text-white p-2 rounded-xl">
+                                    <i data-lucide="wheat" class="w-5 h-5"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-slate-800 text-base">Alimentos Não Perecíveis</h4>
+                                    <p class="text-xs text-slate-500">Grãos, enlatados, farináceos e mantimentos secos</p>
+                                </div>
+                            </div>
+                            <button type="button" onclick="openCustomItemModal('Alimentos Não Perecíveis')" class="text-xs bg-white text-amber-700 hover:bg-amber-50 border border-amber-300 font-bold px-3 py-1.5 rounded-lg shadow-sm transition flex items-center space-x-1">
+                                <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                                <span>+ Adicionar Outro</span>
+                            </button>
+                        </div>
+                        <div id="cat-1-container" class="p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                            <!-- Items dynamically populated -->
+                        </div>
+                    </div>
+
+                    <!-- Cat 2: Carnes -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+                        <div class="bg-rose-500/10 border-b border-rose-500/20 px-6 py-4 flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="bg-rose-600 text-white p-2 rounded-xl">
+                                    <i data-lucide="drumstick" class="w-5 h-5"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-slate-800 text-base">Carnes e Proteínas</h4>
+                                    <p class="text-xs text-slate-500">Carnes bovinas, suínas, aves e pescados (Informe em KG)</p>
+                                </div>
+                            </div>
+                            <button type="button" onclick="openCustomItemModal('Carnes')" class="text-xs bg-white text-rose-700 hover:bg-rose-50 border border-rose-300 font-bold px-3 py-1.5 rounded-lg shadow-sm transition flex items-center space-x-1">
+                                <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                                <span>+ Adicionar Outro</span>
+                            </button>
+                        </div>
+                        <div id="cat-2-container" class="p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                            <!-- Items dynamically populated -->
+                        </div>
+                    </div>
+
+                    <!-- Cat 3: Legumes, Verduras e Frutas -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+                        <div class="bg-emerald-500/10 border-b border-emerald-500/20 px-6 py-4 flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="bg-emerald-600 text-white p-2 rounded-xl">
+                                    <i data-lucide="apple" class="w-5 h-5"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-slate-800 text-base">Hortifrúti (Legumes, Verduras e Frutas)</h4>
+                                    <p class="text-xs text-slate-500">Produtos frescos, folhosos e tubérculos</p>
+                                </div>
+                            </div>
+                            <button type="button" onclick="openCustomItemModal('Hortifrúti')" class="text-xs bg-white text-emerald-700 hover:bg-emerald-50 border border-emerald-300 font-bold px-3 py-1.5 rounded-lg shadow-sm transition flex items-center space-x-1">
+                                <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                                <span>+ Adicionar Outro</span>
+                            </button>
+                        </div>
+                        <div id="cat-3-container" class="p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                            <!-- Items dynamically populated -->
+                        </div>
+                    </div>
+
+                    <!-- Cat 4: Produtos de Limpeza -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+                        <div class="bg-sky-500/10 border-b border-sky-500/20 px-6 py-4 flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="bg-sky-600 text-white p-2 rounded-xl">
+                                    <i data-lucide="sparkles" class="w-5 h-5"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-slate-800 text-base">Produtos de Limpeza e Higiene</h4>
+                                    <p class="text-xs text-slate-500">Saneantes, materiais de limpeza e descartáveis</p>
+                                </div>
+                            </div>
+                            <button type="button" onclick="openCustomItemModal('Produtos de Limpeza')" class="text-xs bg-white text-sky-700 hover:bg-sky-50 border border-sky-300 font-bold px-3 py-1.5 rounded-lg shadow-sm transition flex items-center space-x-1">
+                                <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                                <span>+ Adicionar Outro</span>
+                            </button>
+                        </div>
+                        <div id="cat-4-container" class="p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                            <!-- Items dynamically populated -->
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Custom Items Dynamically Added Section -->
+                <div id="custom-items-section" class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 hidden">
+                    <h4 class="font-bold text-slate-800 text-base mb-3 flex items-center space-x-2">
+                        <i data-lucide="plus-square" class="w-5 h-5 text-indigo-600"></i>
+                        <span>Itens Personalizados Adicionados</span>
+                    </h4>
+                    <div id="custom-items-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3"></div>
+                </div>
+
+                <!-- General Observations -->
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/80 space-y-3">
+                    <label class="block text-sm font-bold text-slate-700 flex items-center space-x-2">
+                        <i data-lucide="message-square" class="w-4 h-4 text-slate-500"></i>
+                        <span>Observações Gerais ou Necessidades Especiais</span>
+                    </label>
+                    <textarea id="kitchen-notes" rows="3" placeholder="Digite aqui orientações sobre urgência, restrições ou observações para a equipe de compras/almoxarifado..." class="w-full bg-slate-50 border border-slate-300 rounded-xl p-3 text-sm text-slate-800 focus:ring-2 focus:ring-brand-500 focus:bg-white outline-none transition"></textarea>
+                </div>
+
+                <!-- Form Action Buttons -->
+                <div class="flex flex-col sm:flex-row items-center justify-end gap-3 pt-4">
+                    <button type="button" onclick="resetKitchenForm()" class="w-full sm:w-auto px-6 py-3 rounded-xl border border-slate-300 text-slate-700 font-semibold text-sm hover:bg-slate-100 transition flex items-center justify-center space-x-2">
+                        <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                        <span>LIMPAR FORMULÁRIO</span>
+                    </button>
+                    <button type="submit" class="w-full sm:w-auto px-8 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm shadow-lg shadow-brand-600/30 transition flex items-center justify-center space-x-2">
+                        <i data-lucide="send" class="w-4 h-4"></i>
+                        <span>REVISAR E ENVIAR SOLICITAÇÃO</span>
+                    </button>
+                </div>
+            </form>
+        </section>
+
+
+        <!-- ========================================== -->
+        <!-- 2. INTERFACE DO ADMINISTRADOR (RESTRITO)   -->
+        <!-- ========================================== -->
+        <section id="admin-view" class="hidden space-y-6">
+
+            <!-- ADMIN LOGIN SCREEN (When Not Authenticated) -->
+            <div id="admin-login-screen" class="max-w-md mx-auto py-12">
+                <div class="bg-white rounded-3xl p-8 shadow-xl border border-slate-200 text-center space-y-6">
+                    <div class="w-16 h-16 bg-brand-100 text-brand-700 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
+                        <i data-lucide="lock" class="w-8 h-8"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-800">Acesso Administrativo</h2>
+                        <p class="text-xs text-slate-500 mt-1">Associação Beneficente Novo Horizonte</p>
+                    </div>
+
+                    <form onsubmit="handleAdminLogin(event)" class="space-y-4 text-left">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Usuário</label>
+                            <div class="relative">
+                                <i data-lucide="user" class="w-5 h-5 absolute left-3 top-3 text-slate-400"></i>
+                                <input type="text" id="login-username" required placeholder="Digite o usuário" class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 focus:bg-white outline-none">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Senha</label>
+                            <div class="relative">
+                                <i data-lucide="key-round" class="w-5 h-5 absolute left-3 top-3 text-slate-400"></i>
+                                <input type="password" id="login-password" required placeholder="••••••••" class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 focus:bg-white outline-none">
+                            </div>
+                        </div>
+
+                        <div id="login-error" class="hidden text-xs text-rose-600 font-semibold bg-rose-50 p-2.5 rounded-lg border border-rose-200">
+                            Usuário ou senha incorretos! (Padrão: admin / admin123)
+                        </div>
+
+                        <button type="submit" class="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl shadow-lg shadow-brand-600/30 transition">
+                            ENTRAR NO PAINEL
+                        </button>
+                    </form>
+
+                    <div class="bg-amber-50 p-3 rounded-xl border border-amber-200 text-xs text-amber-800">
+                        <p class="font-bold">Acesso de Demonstração:</p>
+                        <p>Usuário: <code class="bg-amber-100 px-1 rounded">admin</code> | Senha: <code class="bg-amber-100 px-1 rounded">admin123</code></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ADMIN DASHBOARD PANEL (When Authenticated) -->
+            <div id="admin-panel" class="hidden flex flex-col md:flex-row gap-6">
+
+                <!-- Sidebar Navigation -->
+                <aside class="w-full md:w-64 bg-white rounded-2xl p-4 shadow-sm border border-slate-200 shrink-0 space-y-2">
+                    <div class="px-3 py-2 border-b border-slate-100 mb-2 flex items-center justify-between">
+                        <span class="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Painel de Controle</span>
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-brand-100 text-brand-800">v2.5</span>
+                    </div>
+
+                    <button onclick="switchAdminTab('dashboard')" id="adm-tab-btn-dashboard" class="adm-tab-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-brand-700 bg-brand-50 transition">
+                        <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+                        <span>Dashboard</span>
+                    </button>
+
+                    <button onclick="switchAdminTab('requests')" id="adm-tab-btn-requests" class="adm-tab-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition">
+                        <i data-lucide="clipboard-list" class="w-4 h-4"></i>
+                        <span>Solicitações</span>
+                    </button>
+
+                    <button onclick="switchAdminTab('consolidation')" id="adm-tab-btn-consolidation" class="adm-tab-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition">
+                        <i data-lucide="boxes" class="w-4 h-4"></i>
+                        <span>Controle de Produtos</span>
+                    </button>
+
+                    <button onclick="switchAdminTab('reports')" id="adm-tab-btn-reports" class="adm-tab-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition">
+                        <i data-lucide="file-bar-chart" class="w-4 h-4"></i>
+                        <span>Relatórios & PDF</span>
+                    </button>
+
+                    <button onclick="switchAdminTab('units')" id="adm-tab-btn-units" class="adm-tab-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition">
+                        <i data-lucide="building-2" class="w-4 h-4"></i>
+                        <span>Gestão de Unidades</span>
+                    </button>
+
+                    <button onclick="switchAdminTab('users')" id="adm-tab-btn-users" class="adm-tab-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition">
+                        <i data-lucide="users" class="w-4 h-4"></i>
+                        <span>Usuários</span>
+                    </button>
+
+                    <button onclick="switchAdminTab('audit')" id="adm-tab-btn-audit" class="adm-tab-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition">
+                        <i data-lucide="history" class="w-4 h-4"></i>
+                        <span>Histórico & Auditoria</span>
+                    </button>
+
+                    <div class="pt-4 border-t border-slate-100">
+                        <button onclick="handleAdminLogout()" class="w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-rose-600 hover:bg-rose-50 transition">
+                            <i data-lucide="log-out" class="w-4 h-4"></i>
+                            <span>Sair do Sistema</span>
+                        </button>
+                    </div>
+                </aside>
+
+                <!-- Admin Dynamic Body Content -->
+                <div class="flex-1 space-y-6">
+
+                    <!-- TAB 1: DASHBOARD -->
+                    <div id="adm-tab-dashboard" class="adm-tab-content space-y-6">
+                        <!-- Top Indicator Cards -->
+                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                                <div>
+                                    <p class="text-xs font-bold text-slate-500 uppercase">Total Recebidas</p>
+                                    <h3 id="dash-stat-total" class="text-2xl font-black text-slate-800 mt-1">0</h3>
+                                    <p class="text-[10px] text-slate-400 mt-0.5">Todas as unidades</p>
+                                </div>
+                                <div class="p-3 bg-blue-50 text-blue-600 rounded-xl">
+                                    <i data-lucide="inbox" class="w-6 h-6"></i>
+                                </div>
+                            </div>
+
+                            <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                                <div>
+                                    <p class="text-xs font-bold text-amber-600 uppercase">Pendentes</p>
+                                    <h3 id="dash-stat-pending" class="text-2xl font-black text-amber-600 mt-1">0</h3>
+                                    <p class="text-[10px] text-amber-700/60 mt-0.5">Aguardando análise</p>
+                                </div>
+                                <div class="p-3 bg-amber-50 text-amber-600 rounded-xl">
+                                    <i data-lucide="clock" class="w-6 h-6"></i>
+                                </div>
+                            </div>
+
+                            <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                                <div>
+                                    <p class="text-xs font-bold text-emerald-600 uppercase">Aprovadas</p>
+                                    <h3 id="dash-stat-approved" class="text-2xl font-black text-emerald-600 mt-1">0</h3>
+                                    <p class="text-[10px] text-emerald-700/60 mt-0.5">Em processamento</p>
+                                </div>
+                                <div class="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+                                    <i data-lucide="check-circle-2" class="w-6 h-6"></i>
+                                </div>
+                            </div>
+
+                            <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                                <div>
+                                    <p class="text-xs font-bold text-indigo-600 uppercase">Total Itens</p>
+                                    <h3 id="dash-stat-items" class="text-2xl font-black text-indigo-600 mt-1">0</h3>
+                                    <p class="text-[10px] text-indigo-700/60 mt-0.5">Unidades solicitadas</p>
+                                </div>
+                                <div class="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
+                                    <i data-lucide="layers" class="w-6 h-6"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Secondary Row Status Counters -->
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div class="bg-slate-100 p-3 rounded-xl border border-slate-200 text-center">
+                                <span class="text-xs font-semibold text-slate-600">🔵 Em Análise:</span>
+                                <span id="dash-sub-analysis" class="font-bold text-slate-800 ml-1">0</span>
+                            </div>
+                            <div class="bg-slate-100 p-3 rounded-xl border border-slate-200 text-center">
+                                <span class="text-xs font-semibold text-slate-600">🟣 Em Separação:</span>
+                                <span id="dash-sub-separation" class="font-bold text-slate-800 ml-1">0</span>
+                            </div>
+                            <div class="bg-slate-100 p-3 rounded-xl border border-slate-200 text-center">
+                                <span class="text-xs font-semibold text-slate-600">✅ Atendidas:</span>
+                                <span id="dash-sub-fulfilled" class="font-bold text-slate-800 ml-1">0</span>
+                            </div>
+                            <div class="bg-slate-100 p-3 rounded-xl border border-slate-200 text-center">
+                                <span class="text-xs font-semibold text-slate-600">🔴 Recusadas:</span>
+                                <span id="dash-sub-rejected" class="font-bold text-slate-800 ml-1">0</span>
+                            </div>
+                        </div>
+
+                        <!-- Charts Section -->
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                                <h4 class="font-bold text-slate-800 text-sm flex items-center space-x-2">
+                                    <i data-lucide="pie-chart" class="w-4 h-4 text-brand-600"></i>
+                                    <span>Solicitações por Status</span>
+                                </h4>
+                                <div class="h-64 relative flex items-center justify-center">
+                                    <canvas id="chartStatus"></canvas>
+                                </div>
+                            </div>
+
+                            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                                <h4 class="font-bold text-slate-800 text-sm flex items-center space-x-2">
+                                    <i data-lucide="bar-chart-3" class="w-4 h-4 text-brand-600"></i>
+                                    <span>Solicitações por Unidade</span>
+                                </h4>
+                                <div class="h-64 relative flex items-center justify-center">
+                                    <canvas id="chartUnits"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 2: GERENCIAMENTO DE SOLICITAÇÕES -->
+                    <div id="adm-tab-requests" class="adm-tab-content space-y-4 hidden">
+                        <!-- Filters Bar -->
+                        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Filtrar Unidade</label>
+                                <select id="filter-unit" onchange="renderAdminRequestsTable()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 outline-none">
+                                    <option value="ALL">Todas as Unidades</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Filtrar Status</label>
+                                <select id="filter-status" onchange="renderAdminRequestsTable()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 outline-none">
+                                    <option value="ALL">Todos os Status</option>
+                                    <option value="Pendente">🟡 Pendente</option>
+                                    <option value="Em análise">🔵 Em Análise</option>
+                                    <option value="Aprovada">🟢 Aprovada</option>
+                                    <option value="Em separação">🟣 Em Separação</option>
+                                    <option value="Atendida">✅ Atendida</option>
+                                    <option value="Recusada">🔴 Recusada</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-500 uppercase mb-1">Busca por Protocolo/Nome</label>
+                                <input type="text" id="filter-search" onkeyup="renderAdminRequestsTable()" placeholder="Ex: ANH-2026 ou Maria" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-700 outline-none">
+                            </div>
+
+                            <div class="flex items-end">
+                                <button onclick="resetAdminFilters()" class="w-full py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition">
+                                    Limpar Filtros
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Requests Table Card -->
+                        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr class="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                                            <th class="p-4">Protocolo</th>
+                                            <th class="p-4">Unidade</th>
+                                            <th class="p-4">Responsável</th>
+                                            <th class="p-4">Data / Hora</th>
+                                            <th class="p-4 text-center">Itens</th>
+                                            <th class="p-4 text-center">Status</th>
+                                            <th class="p-4 text-right">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="requests-table-body" class="divide-y divide-slate-100 text-sm">
+                                        <!-- Table rows -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 3: CONTROLE DE PRODUTOS CONSOLIDADOS -->
+                    <div id="adm-tab-consolidation" class="adm-tab-content space-y-4 hidden">
+                        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                                <div>
+                                    <h3 class="font-bold text-slate-800 text-lg">Consolidação Geral de Produtos Sombreados</h3>
+                                    <p class="text-xs text-slate-500">Somatório de demandas por produto entre todas as unidades ativas</p>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <select id="consolidation-cat-filter" onchange="renderConsolidatedProducts()" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 outline-none">
+                                        <option value="ALL">Todas as Categorias</option>
+                                        <option value="Alimentos Não Perecíveis">Alimentos Não Perecíveis</option>
+                                        <option value="Carnes">Carnes</option>
+                                        <option value="Hortifrúti">Hortifrúti</option>
+                                        <option value="Produtos de Limpeza">Produtos de Limpeza</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div id="consolidated-products-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <!-- Consolidated items cards loaded here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 4: RELATÓRIOS -->
+                    <div id="adm-tab-reports" class="adm-tab-content space-y-6 hidden">
+                        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+                            <div class="border-b border-slate-100 pb-4">
+                                <h3 class="font-bold text-slate-800 text-lg">Gerador de Relatórios Corporativos</h3>
+                                <p class="text-xs text-slate-500">Exporte dados detalhados para relatórios executivos em PDF ou Excel</p>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Filtrar por Categoria</label>
+                                    <select id="report-cat" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-semibold text-slate-800 outline-none">
+                                        <option value="ALL">Todas as Categorias</option>
+                                        <option value="Alimentos Não Perecíveis">Alimentos Não Perecíveis</option>
+                                        <option value="Carnes">Carnes</option>
+                                        <option value="Hortifrúti">Hortifrúti</option>
+                                        <option value="Produtos de Limpeza">Produtos de Limpeza</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Filtrar por Unidade</label>
+                                    <select id="report-unit" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-semibold text-slate-800 outline-none">
+                                        <option value="ALL">Todas as Unidades</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Status do Pedido</label>
+                                    <select id="report-status" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs font-semibold text-slate-800 outline-none">
+                                        <option value="ALL">Todos os Status</option>
+                                        <option value="Pendente">Pendentes</option>
+                                        <option value="Aprovada">Aprovadas</option>
+                                        <option value="Atendida">Atendidas</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="flex flex-wrap gap-3 pt-2">
+                                <button onclick="exportReportExcel()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow transition flex items-center space-x-2">
+                                    <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+                                    <span>Exportar Excel (.XLSX)</span>
+                                </button>
+
+                                <button onclick="printReportPDF()" class="px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl shadow transition flex items-center space-x-2">
+                                    <i data-lucide="printer" class="w-4 h-4"></i>
+                                    <span>Imprimir / Gerar PDF</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 5: GESTÃO DE UNIDADES -->
+                    <div id="adm-tab-units" class="adm-tab-content space-y-6 hidden">
+                        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+                            <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+                                <div>
+                                    <h3 class="font-bold text-slate-800 text-lg">Unidades Cadastradas</h3>
+                                    <p class="text-xs text-slate-500">Alimenta automaticamente o menu de solicitação das cozinhas</p>
+                                </div>
+                                <button onclick="openUnitModal()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-xl transition flex items-center space-x-1">
+                                    <i data-lucide="plus" class="w-4 h-4"></i>
+                                    <span>Nova Unidade</span>
+                                </button>
+                            </div>
+
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left">
+                                    <thead>
+                                        <tr class="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase border-b border-slate-200">
+                                            <th class="p-3">Nome da Unidade</th>
+                                            <th class="p-3">Endereço / Cidade</th>
+                                            <th class="p-3">Status</th>
+                                            <th class="p-3 text-right">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="units-table-body" class="divide-y divide-slate-100 text-sm">
+                                        <!-- Unit rows -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 6: USUÁRIOS ADMIN -->
+                    <div id="adm-tab-users" class="adm-tab-content space-y-6 hidden">
+                        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+                            <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+                                <div>
+                                    <h3 class="font-bold text-slate-800 text-lg">Gerenciamento de Administradores</h3>
+                                    <p class="text-xs text-slate-500">Controle de credenciais de acesso ao painel gestor</p>
+                                </div>
+                                <button onclick="openUserModal()" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-xl transition flex items-center space-x-1">
+                                    <i data-lucide="user-plus" class="w-4 h-4"></i>
+                                    <span>Novo Usuário</span>
+                                </button>
+                            </div>
+
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left">
+                                    <thead>
+                                        <tr class="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase border-b border-slate-200">
+                                            <th class="p-3">Nome / Usuário</th>
+                                            <th class="p-3">Perfil / Cargo</th>
+                                            <th class="p-3">Status</th>
+                                            <th class="p-3 text-right">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="users-table-body" class="divide-y divide-slate-100 text-sm">
+                                        <!-- User rows -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 7: HISTÓRICO E AUDITORIA -->
+                    <div id="adm-tab-audit" class="adm-tab-content space-y-6 hidden">
+                        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                            <div class="border-b border-slate-100 pb-4">
+                                <h3 class="font-bold text-slate-800 text-lg">Histórico de Alterações e Auditoria</h3>
+                                <p class="text-xs text-slate-500">Registro cronológico de status, edições e observações de solicitações</p>
+                            </div>
+
+                            <div id="audit-log-container" class="space-y-3">
+                                <!-- Log list items -->
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER INSTITUCIONAL -->
+    <footer class="no-print bg-white border-t border-slate-200 py-6 mt-12 text-center text-xs text-slate-500">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="flex items-center space-x-2">
+                <i data-lucide="heart" class="w-4 h-4 text-brand-600 fill-brand-600"></i>
+                <span class="font-semibold text-slate-700">Associação Beneficente Novo Horizonte</span>
+                <span>• CNPJ 00.000.000/0001-00</span>
+            </div>
+            <div>
+                <span>Sistema Integrado de Suprimentos & Cozinhas © 2026</span>
+            </div>
+        </div>
+    </footer>
+
+
+    <!-- ========================================== -->
+    <!-- MODALS SECTION                             -->
+    <!-- ========================================== -->
+
+    <!-- MODAL 1: ADD CUSTOM ITEM (Kitchens) -->
+    <div id="custom-item-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in duration-200">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 class="font-bold text-slate-800 text-base flex items-center space-x-2">
+                    <i data-lucide="plus-circle" class="w-5 h-5 text-brand-600"></i>
+                    <span>Adicionar Outro Produto</span>
+                </h3>
+                <button onclick="closeCustomItemModal()" class="text-slate-400 hover:text-slate-600">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form onsubmit="handleAddCustomItem(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nome do Produto *</label>
+                    <input type="text" id="custom-name" required placeholder="Ex: Farinha de Milho Fina" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Categoria *</label>
+                    <select id="custom-cat" required class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+                        <option value="Alimentos Não Perecíveis">Alimentos Não Perecíveis</option>
+                        <option value="Carnes">Carnes</option>
+                        <option value="Hortifrúti">Hortifrúti</option>
+                        <option value="Produtos de Limpeza">Produtos de Limpeza</option>
+                    </select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Quantidade *</label>
+                        <input type="number" step="0.1" min="0.1" id="custom-qty" required placeholder="Ex: 5" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Unidade *</label>
+                        <select id="custom-unit" required class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+                            <option value="kg">kg</option>
+                            <option value="un">unidades</option>
+                            <option value="pct">pacote</option>
+                            <option value="cx">caixa</option>
+                            <option value="litro">litro</option>
+                            <option value="maço">maço</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Observação (Opcional)</label>
+                    <input type="text" id="custom-obs" placeholder="Ex: Preferência marca X" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+                </div>
+
+                <div class="flex items-center justify-end space-x-2 pt-2">
+                    <button type="button" onclick="closeCustomItemModal()" class="px-4 py-2 border border-slate-300 text-slate-600 font-bold text-xs rounded-xl hover:bg-slate-100">Cancelar</button>
+                    <button type="submit" class="px-5 py-2 bg-brand-600 text-white font-bold text-xs rounded-xl hover:bg-brand-700 shadow">Adicionar Produto</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- MODAL 2: CONFIRMAÇÃO DE RESUMO ANTES DE ENVIAR (Kitchens) -->
+    <div id="summary-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-5 max-h-[90vh] flex flex-col">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 class="font-bold text-slate-800 text-lg flex items-center space-x-2">
+                    <i data-lucide="clipboard-check" class="w-5 h-5 text-brand-600"></i>
+                    <span>Conferência da Solicitação</span>
+                </h3>
+                <button onclick="closeSummaryModal()" class="text-slate-400 hover:text-slate-600">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="overflow-y-auto space-y-4 flex-1 pr-1">
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 grid grid-cols-2 gap-2 text-xs">
+                    <div><strong>Unidade:</strong> <span id="sum-unit-name" class="text-slate-700 font-semibold"></span></div>
+                    <div><strong>Responsável:</strong> <span id="sum-responsible-name" class="text-slate-700 font-semibold"></span></div>
+                </div>
+
+                <div>
+                    <h4 class="font-bold text-xs text-slate-500 uppercase mb-2">Itens Solicitados (<span id="sum-items-count">0</span>):</h4>
+                    <div id="sum-items-list" class="space-y-2"></div>
+                </div>
+
+                <div id="sum-obs-box" class="hidden bg-amber-50 p-3 rounded-xl border border-amber-200 text-xs text-amber-900">
+                    <strong>Observações:</strong> <span id="sum-obs-text"></span>
+                </div>
+            </div>
+
+            <div class="border-t border-slate-100 pt-3 flex items-center justify-end space-x-3">
+                <button onclick="closeSummaryModal()" class="px-5 py-2.5 border border-slate-300 text-slate-700 font-bold text-xs rounded-xl hover:bg-slate-100">
+                    Voltar e Editar
+                </button>
+                <button onclick="confirmAndSendRequest()" class="px-6 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-brand-600/30">
+                    CONFIRMAR E TRANSMITIR
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- MODAL 3: RECIBO DE CONFIRMAÇÃO (Protocol Dialog) -->
+    <div id="receipt-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl max-w-lg w-full p-8 shadow-2xl text-center space-y-5">
+            <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
+                <i data-lucide="check" class="w-10 h-10"></i>
+            </div>
+
+            <div>
+                <h3 class="text-2xl font-black text-slate-800">Solicitação Enviada!</h3>
+                <p class="text-xs text-slate-500 mt-1">O pedido foi gravado com sucesso no banco de dados.</p>
+            </div>
+
+            <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                <p class="text-xs text-slate-400 font-bold uppercase tracking-wider">Número do Protocolo</p>
+                <p id="receipt-protocol-num" class="text-2xl font-mono font-black text-brand-700 mt-1">#ANH-2026-0000</p>
+            </div>
+
+            <p class="text-xs text-slate-600 leading-relaxed">
+                Guarde este número para acompanhamento junto à administração da Associação Beneficente Novo Horizonte.
+            </p>
+
+            <div class="flex flex-col sm:flex-row gap-2 pt-2">
+                <button onclick="printReceipt()" class="w-full py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl flex items-center justify-center space-x-2">
+                    <i data-lucide="printer" class="w-4 h-4"></i>
+                    <span>Imprimir Comprovante</span>
+                </button>
+                <button onclick="closeReceiptModal()" class="w-full py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs rounded-xl">
+                    Nova Solicitação
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- MODAL 4: DETALHES E STATUS DA SOLICITAÇÃO (Admin View) -->
+    <div id="request-detail-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl max-w-3xl w-full p-6 shadow-2xl space-y-5 max-h-[90vh] flex flex-col">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center space-x-3">
+                    <span id="detail-status-badge" class="px-3 py-1 rounded-full text-xs font-bold"></span>
+                    <h3 id="detail-protocol-title" class="font-bold text-slate-800 text-lg"></h3>
+                </div>
+                <button onclick="closeRequestDetailModal()" class="text-slate-400 hover:text-slate-600">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="overflow-y-auto space-y-5 flex-1 pr-1 text-xs">
+                <!-- Info Header -->
+                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <div><span class="text-slate-400 block font-bold">UNIDADE:</span> <span id="detail-unit" class="font-bold text-slate-800 text-sm"></span></div>
+                    <div><span class="text-slate-400 block font-bold">SOLICITANTE:</span> <span id="detail-resp" class="font-semibold text-slate-800"></span></div>
+                    <div><span class="text-slate-400 block font-bold">DATA/HORA:</span> <span id="detail-date" class="font-medium text-slate-700"></span></div>
+                </div>
+
+                <!-- Admin Status Update Tool -->
+                <div class="bg-slate-100 p-4 rounded-2xl border border-slate-200 space-y-3">
+                    <h4 class="font-bold text-slate-800 text-xs uppercase flex items-center space-x-1">
+                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-brand-600"></i>
+                        <span>Atualizar Status Administrativo</span>
+                    </h4>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Novo Status</label>
+                            <select id="detail-status-select" class="w-full bg-white border border-slate-300 rounded-xl p-2 font-bold text-xs">
+                                <option value="Pendente">🟡 Pendente</option>
+                                <option value="Em análise">🔵 Em análise</option>
+                                <option value="Aprovada">🟢 Aprovada</option>
+                                <option value="Em separação">🟣 Em separação</option>
+                                <option value="Atendida">✅ Atendida</option>
+                                <option value="Recusada">🔴 Recusada</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Observação Administrativa</label>
+                            <input type="text" id="detail-admin-note" placeholder="Ex: Entregar na terça-feira" class="w-full bg-white border border-slate-300 rounded-xl p-2 text-xs">
+                        </div>
+                    </div>
+
+                    <button onclick="saveStatusUpdate()" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl shadow">
+                        Salvar Alteração de Status
+                    </button>
+                </div>
+
+                <!-- Products breakdown -->
+                <div class="space-y-3">
+                    <h4 class="font-bold text-slate-800 text-xs uppercase">Produtos Solicitados:</h4>
+                    <div id="detail-products-list" class="space-y-2"></div>
+                </div>
+
+                <!-- Observations -->
+                <div id="detail-kitchen-notes-box" class="bg-amber-50 p-3 rounded-xl border border-amber-200">
+                    <span class="font-bold text-amber-900">Observações da Cozinha:</span>
+                    <p id="detail-kitchen-notes" class="text-amber-800 mt-1"></p>
+                </div>
+            </div>
+
+            <div class="border-t border-slate-100 pt-3 flex items-center justify-between">
+                <button onclick="printSingleRequest()" class="px-4 py-2 border border-slate-300 text-slate-700 font-bold text-xs rounded-xl hover:bg-slate-100 flex items-center space-x-1">
+                    <i data-lucide="printer" class="w-4 h-4"></i>
+                    <span>Imprimir Pedido</span>
+                </button>
+                <button onclick="closeRequestDetailModal()" class="px-5 py-2 bg-slate-200 text-slate-700 font-bold text-xs rounded-xl hover:bg-slate-300">
+                    Fechar
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- MODAL 5: GESTÃO DE UNIDADE (CADASTRO/EDIÇÃO) -->
+    <div id="unit-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <h3 id="unit-modal-title" class="font-bold text-slate-800 text-base">Cadastrar Nova Unidade</h3>
+            <form onsubmit="handleSaveUnit(event)" class="space-y-3">
+                <input type="hidden" id="unit-id-input">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nome da Unidade *</label>
+                    <input type="text" id="unit-name-input" required placeholder="Ex: Unidade Centro-Sul" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Endereço / Cidade</label>
+                    <input type="text" id="unit-address-input" placeholder="Ex: Rua das Flores, 123" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm">
+                </div>
+                <div class="flex justify-end space-x-2 pt-2">
+                    <button type="button" onclick="closeUnitModal()" class="px-4 py-2 border border-slate-300 text-slate-600 font-bold text-xs rounded-xl">Cancelar</button>
+                    <button type="submit" class="px-5 py-2 bg-brand-600 text-white font-bold text-xs rounded-xl">Salvar Unidade</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- MODAL 6: GESTÃO DE USUÁRIO (CADASTRO/EDIÇÃO) -->
+    <div id="user-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <h3 id="user-modal-title" class="font-bold text-slate-800 text-base">Cadastrar Novo Administrador</h3>
+            <form onsubmit="handleSaveUser(event)" class="space-y-3">
+                <input type="hidden" id="user-id-input">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nome Completo *</label>
+                    <input type="text" id="user-fullname-input" required placeholder="Ex: Carlos Silva" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nome de Usuário (Login) *</label>
+                    <input type="text" id="user-name-input" required placeholder="Ex: csilva" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Senha *</label>
+                    <input type="password" id="user-pass-input" placeholder="••••••••" class="w-full bg-slate-50 border border-slate-300 rounded-xl p-2.5 text-sm">
+                </div>
+                <div class="flex justify-end space-x-2 pt-2">
+                    <button type="button" onclick="closeUserModal()" class="px-4 py-2 border border-slate-300 text-slate-600 font-bold text-xs rounded-xl">Cancelar</button>
+                    <button type="submit" class="px-5 py-2 bg-brand-600 text-white font-bold text-xs rounded-xl">Salvar Usuário</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- MODAL 7: DOCUMENTAÇÃO TÉCNICA (SQL / PYTHON / FLASK ARCHITECTURE) -->
+    <div id="docs-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 text-slate-100 rounded-3xl max-w-4xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col border border-slate-800">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div class="flex items-center space-x-2">
+                    <i data-lucide="database" class="w-5 h-5 text-emerald-400"></i>
+                    <h3 class="font-bold text-white text-base">Arquitetura Backend, SQL & Script Python Flask</h3>
+                </div>
+                <button onclick="closeDocsModal()" class="text-slate-400 hover:text-white">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="overflow-y-auto space-y-4 flex-1 pr-2 text-xs font-mono">
+                <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
+                    <p class="text-emerald-400 font-bold">-- SCRIPT SQL SCHEMA (MySQL / PostgreSQL)</p>
+                    <pre class="text-slate-300 whitespace-pre-wrap selection:bg-emerald-900">
+CREATE DATABASE IF NOT EXISTS novo_horizonte_db;
+USE novo_horizonte_db;
+
+-- 1. Tabela de Unidades
+CREATE TABLE unidades (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nome VARCHAR(150) NOT NULL,
+    endereco VARCHAR(255),
+    ativo TINYINT(1) DEFAULT 1,
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 2. Tabela de Usuários do Painel Admin
+CREATE TABLE usuarios (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nome VARCHAR(150) NOT NULL,
+    username VARCHAR(80) NOT NULL UNIQUE,
+    senha_hash VARCHAR(255) NOT NULL,
+    perfil VARCHAR(50) DEFAULT 'ADMIN',
+    ativo TINYINT(1) DEFAULT 1
+);
+
+-- 3. Tabela de Solicitacoes
+CREATE TABLE solicitacoes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    protocolo VARCHAR(50) NOT NULL UNIQUE,
+    unidade_id INT NOT NULL,
+    responsavel VARCHAR(150) NOT NULL,
+    status ENUM('Pendente','Em análise','Aprovada','Em separação','Atendida','Recusada') DEFAULT 'Pendente',
+    observacoes TEXT,
+    observacao_admin TEXT,
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (unidade_id) REFERENCES unidades(id)
+);
+
+-- 4. Tabela de Itens da Solicitação
+CREATE TABLE itens_solicitacao (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    solicitacao_id INT NOT NULL,
+    nome_produto VARCHAR(150) NOT NULL,
+    categoria VARCHAR(100) NOT NULL,
+    quantidade DECIMAL(10,2) NOT NULL,
+    unidade_medida VARCHAR(20) NOT NULL,
+    observacao VARCHAR(255),
+    FOREIGN KEY (solicitacao_id) REFERENCES solicitacoes(id) ON DELETE CASCADE
+);
+
+-- 5. Tabela de Histórico e Auditoria
+CREATE TABLE historico_audit (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    solicitacao_id INT NOT NULL,
+    usuario VARCHAR(100) NOT NULL,
+    acao VARCHAR(255) NOT NULL,
+    detalhes TEXT,
+    data_hora TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+</pre>
+                </div>
+
+                <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
+                    <p class="text-sky-400 font-bold"># ESTRUTURA SERVIDOR FLASK (Python REST API)</p>
+                    <pre class="text-slate-300 whitespace-pre-wrap selection:bg-sky-900">
+from flask import Flask, request, jsonify
+from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
+import datetime
+
+app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:senha@localhost/novo_horizonte_db'
+db = SQLAlchemy(app)
+
+@app.route('/api/solicitacoes', methods=['POST'])
+def criar_solicitacao():
+    data = request.json
+    # Validação estrita
+    if not data.get('unidade') or not data.get('responsavel'):
+        return jsonify({'error': 'Campos obrigatórios ausentes'}), 400
+    
+    protocolo = f"#ANH-{datetime.datetime.now().year}-{int(datetime.datetime.now().timestamp())}"
+    # Persistir banco de dados MySQL...
+    return jsonify({'message': 'Criado com sucesso', 'protocolo': protocolo}), 201
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)
+</pre>
+                </div>
+            </div>
+
+            <div class="flex justify-end border-t border-slate-800 pt-3">
+                <button onclick="closeDocsModal()" class="px-4 py-2 bg-slate-800 text-white rounded-xl hover:bg-slate-700">Fechar Janela</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ========================================== -->
+    <!-- JAVASCRIPT LOGIC & APPLICATION STATE       -->
+    <!-- ========================================== -->
+    <script>
+        // Default Catalog Data
+        const DEFAULT_PRODUCTS = {
+            "Alimentos Não Perecíveis": [
+                { id: "p1", name: "Arroz", unit: "kg" },
+                { id: "p2", name: "Feijão", unit: "kg" },
+                { id: "p3", name: "Macarrão", unit: "pacote" },
+                { id: "p4", name: "Óleo de Soja", unit: "unidade" },
+                { id: "p5", name: "Açúcar", unit: "kg" },
+                { id: "p6", name: "Sal Refinado", unit: "kg" },
+                { id: "p7", name: "Farinha de Trigo", unit: "kg" },
+                { id: "p8", name: "Farinha de Mandioca", unit: "kg" },
+                { id: "p9", name: "Fubá", unit: "kg" },
+                { id: "p10", name: "Molho de Tomate", unit: "sachê" },
+                { id: "p11", name: "Extrato de Tomate", unit: "lata" },
+                { id: "p12", name: "Milho em Conserva", unit: "lata" },
+                { id: "p13", name: "Ervilha em Conserva", unit: "lata" },
+                { id: "p14", name: "Leite em Pó", unit: "lata" },
+                { id: "p15", name: "Café Torrado e Moído", unit: "pacote" },
+                { id: "p16", name: "Biscoito Maisena", unit: "pacote" },
+                { id: "p17", name: "Aveia em Flocos", unit: "pacote" }
+            ],
+            "Carnes": [
+                { id: "p18", name: "Carne Bovina (Acém/Pá)", unit: "kg" },
+                { id: "p19", name: "Carne Moída Bovina", unit: "kg" },
+                { id: "p20", name: "Frango Inteiro", unit: "kg" },
+                { id: "p21", name: "Peito de Frango", unit: "kg" },
+                { id: "p22", name: "Coxa e Sobrecoxa de Frango", unit: "kg" },
+                { id: "p23", name: "Carne Suína (Lombo/Pernil)", unit: "kg" },
+                { id: "p24", name: "Linguiça Calabresa", unit: "kg" },
+                { id: "p25", name: "Filé de Peixe", unit: "kg" }
+            ],
+            "Hortifrúti": [
+                { id: "p26", name: "Batata Monalisa", unit: "kg" },
+                { id: "p27", name: "Cenoura", unit: "kg" },
+                { id: "p28", name: "Cebola Amarela", unit: "kg" },
+                { id: "p29", name: "Alho", unit: "kg" },
+                { id: "p30", name: "Tomate", unit: "kg" },
+                { id: "p31", name: "Abobrinha Verde", unit: "kg" },
+                { id: "p32", name: "Chuchu", unit: "kg" },
+                { id: "p33", name: "Beterraba", unit: "kg" },
+                { id: "p34", name: "Abóbora Cabotiá", unit: "kg" },
+                { id: "p35", name: "Alface Crespa", unit: "maço" },
+                { id: "p36", name: "Couve Manteiga", unit: "maço" },
+                { id: "p37", name: "Repolho Verde", unit: "unidade" },
+                { id: "p38", name: "Cheiro-Verde (Salsa/Cebolinha)", unit: "maço" },
+                { id: "p39", name: "Banana Nanica", unit: "caixa" },
+                { id: "p40", name: "Maçã Gala", unit: "kg" },
+                { id: "p41", name: "Laranja Pera", unit: "caixa" }
+            ],
+            "Produtos de Limpeza": [
+                { id: "p42", name: "Água Sanitária 2L", unit: "frasco" },
+                { id: "p43", name: "Detergente Líquido 500ml", unit: "frasco" },
+                { id: "p44", name: "Desinfetante Perfumado 2L", unit: "frasco" },
+                { id: "p45", name: "Sabão em Pó 1kg", unit: "caixa" },
+                { id: "p46", name: "Sabão em Barra (Pacote c/ 5)", unit: "pacote" },
+                { id: "p47", name: "Álcool 70% 1L", unit: "frasco" },
+                { id: "p48", name: "Limpador Multiuso", unit: "frasco" },
+                { id: "p49", name: "Esponja Dupla Face", unit: "unidade" },
+                { id: "p50", name: "Pano de Chão Alvejado", unit: "unidade" },
+                { id: "p51", name: "Saco de Lixo 100L", unit: "pacote" },
+                { id: "p52", name: "Papel Higiênico (Fardo)", unit: "fardo" },
+                { id: "p53", name: "Papel Toalha Interfolha", unit: "pacote" },
+                { id: "p54", name: "Luvas de Limpeza (M/G)", unit: "par" }
+            ]
+        };
+
+        // Seed Units
+        const SEED_UNITS = [
+            { id: "u1", name: "Unidade Central - Sede", address: "Av. Paulista, 1000 - Centro", active: true },
+            { id: "u2", name: "Unidade Zona Leste - Infância", address: "Rua das Palmeiras, 45", active: true },
+            { id: "u3", name: "Unidade Zona Norte - Idosos", address: "Av. Brasil, 890", active: true },
+            { id: "u4", name: "Unidade Zona Sul - Acolhimento", address: "Rua Esperança, 12", active: true }
+        ];
+
+        // Seed Admin Users
+        const SEED_USERS = [
+            { id: "usr1", fullname: "Administrador Geral", username: "admin", pass: "admin123", role: "Super Admin", active: true }
+        ];
+
+        // Seed Requests for Instant Dynamic Testing
+        const SEED_REQUESTS = [
+            {
+                id: "req-1",
+                protocol: "#ANH-2026-X892",
+                unit: "Unidade Central - Sede",
+                responsible: "Dona Maria da Conceição",
+                datetime: "06/11/2026 09:30",
+                status: "Pendente",
+                notes: "Urgência de entrega para o almoço comunitário de sexta-feira.",
+                adminNote: "",
+                items: [
+                    { name: "Arroz", category: "Alimentos Não Perecíveis", qty: 50, unit: "kg" },
+                    { name: "Feijão", category: "Alimentos Não Perecíveis", qty: 30, unit: "kg" },
+                    { name: "Carne Bovina (Acém/Pá)", category: "Carnes", qty: 25, unit: "kg" },
+                    { name: "Batata Monalisa", category: "Hortifrúti", qty: 15, unit: "kg" },
+                    { name: "Detergente Líquido 500ml", category: "Produtos de Limpeza", qty: 12, unit: "frasco" }
+                ]
+            },
+            {
+                id: "req-2",
+                protocol: "#ANH-2026-Y410",
+                unit: "Unidade Zona Leste - Infância",
+                responsible: "Cozinheira Ana Paula",
+                datetime: "06/11/2026 10:15",
+                status: "Aprovada",
+                notes: "Dar prioridade ao biscoito e leite em pó para o lanche dos alunos.",
+                adminNote: "Aprovado em assembleia de suprimentos.",
+                items: [
+                    { name: "Arroz", category: "Alimentos Não Perecíveis", qty: 40, unit: "kg" },
+                    { name: "Leite em Pó", category: "Alimentos Não Perecíveis", qty: 20, unit: "lata" },
+                    { name: "Biscoito Maisena", category: "Alimentos Não Perecíveis", qty: 35, unit: "pacote" },
+                    { name: "Banana Nanica", category: "Hortifrúti", qty: 2, unit: "caixa" }
+                ]
+            },
+            {
+                id: "req-3",
+                protocol: "#ANH-2026-Z105",
+                unit: "Unidade Zona Norte - Idosos",
+                responsible: "Nutricionista Fernanda",
+                datetime: "05/11/2026 14:20",
+                status: "Atendida",
+                notes: "Alimentos dietéticos e hortifrúti fresco.",
+                adminNote: "Entregue pelo fornecedor HortiSP.",
+                items: [
+                    { name: "Arroz", category: "Alimentos Não Perecíveis", qty: 60, unit: "kg" },
+                    { name: "Carne Moída Bovina", category: "Carnes", qty: 20, unit: "kg" },
+                    { name: "Cenoura", category: "Hortifrúti", qty: 10, unit: "kg" }
+                ]
+            }
+        ];
+
+        // Seed Audit Logs
+        const SEED_AUDIT = [
+            { timestamp: "06/11/2026 10:15", user: "Cozinheira Ana Paula", action: "Criou Solicitação", detail: "Protocolo #ANH-2026-Y410" },
+            { timestamp: "06/11/2026 10:30", user: "admin", action: "Alterou Status", detail: "#ANH-2026-Y410 alterado para Aprovada" }
+        ];
+
+        // Local Storage State Managers
+        let state = {
+            units: JSON.parse(localStorage.getItem('anh_units')) || SEED_UNITS,
+            users: JSON.parse(localStorage.getItem('anh_users')) || SEED_USERS,
+            requests: JSON.parse(localStorage.getItem('anh_requests')) || SEED_REQUESTS,
+            audit: JSON.parse(localStorage.getItem('anh_audit')) || SEED_AUDIT,
+            customItems: [],
+            currentAdminUser: JSON.parse(sessionStorage.getItem('anh_session')) || null,
+            activeAdminTab: 'dashboard',
+            chartStatusInst: null,
+            chartUnitsInst: null
+        };
+
+        function saveState() {
+            localStorage.setItem('anh_units', JSON.stringify(state.units));
+            localStorage.setItem('anh_users', JSON.stringify(state.users));
+            localStorage.setItem('anh_requests', JSON.stringify(state.requests));
+            localStorage.setItem('anh_audit', JSON.stringify(state.audit));
+        }
+
+        // INIT APP ON LOAD
+        window.onload = function() {
+            lucide.createIcons();
+            updateKitchenDateTime();
+            populateUnitSelects();
+            renderCatalogItems();
+
+            if (state.currentAdminUser) {
+                document.getElementById('admin-login-screen').classList.add('hidden');
+                document.getElementById('admin-panel').classList.remove('hidden');
+                refreshAdminDashboard();
+            }
+        };
+
+        function updateKitchenDateTime() {
+            const now = new Date();
+            const formatted = now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            document.getElementById('kitchen-datetime').value = formatted;
+        }
+
+        function populateUnitSelects() {
+            const kitchenSelect = document.getElementById('kitchen-unit-select');
+            const filterSelect = document.getElementById('filter-unit');
+            const reportSelect = document.getElementById('report-unit');
+
+            let optionsHtml = '<option value="">-- Selecione a Unidade --</option>';
+            let filterOptionsHtml = '<option value="ALL">Todas as Unidades</option>';
+
+            state.units.filter(u => u.active).forEach(u => {
+                optionsHtml += `<option value="${u.name}">${u.name}</option>`;
+                filterOptionsHtml += `<option value="${u.name}">${u.name}</option>`;
+            });
+
+            kitchenSelect.innerHTML = optionsHtml;
+            filterSelect.innerHTML = filterOptionsHtml;
+            reportSelect.innerHTML = filterOptionsHtml;
+        }
+
+        function renderCatalogItems() {
+            const containers = {
+                "Alimentos Não Perecíveis": document.getElementById('cat-1-container'),
+                "Carnes": document.getElementById('cat-2-container'),
+                "Hortifrúti": document.getElementById('cat-3-container'),
+                "Produtos de Limpeza": document.getElementById('cat-4-container')
+            };
+
+            for (const [catName, container] of Object.entries(containers)) {
+                container.innerHTML = '';
+                DEFAULT_PRODUCTS[catName].forEach(prod => {
+                    const itemEl = document.createElement('div');
+                    itemEl.className = 'bg-slate-50 border border-slate-200 p-3 rounded-xl hover:border-slate-300 transition space-y-2';
+                    itemEl.innerHTML = `
+                        <label class="block text-xs font-bold text-slate-800 leading-snug">${prod.name}</label>
+                        <div class="flex items-center space-x-2">
+                            <input type="number" min="0" step="0.5" placeholder="0" 
+                                data-prod-name="${prod.name}" 
+                                data-cat="${catName}" 
+                                data-unit="${prod.unit}" 
+                                class="prod-qty-input w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-sm font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-brand-500">
+                            <span class="text-[11px] font-bold text-slate-500 shrink-0 w-12 text-right">${prod.unit}</span>
+                        </div>
+                    `;
+                    container.appendChild(itemEl);
+                });
+            }
+        }
+
+        // SWITCH VIEWS
+        function switchView(view) {
+            const kitchenView = document.getElementById('kitchen-view');
+            const adminView = document.getElementById('admin-view');
+            const btnKitchen = document.getElementById('nav-btn-kitchen');
+            const btnAdmin = document.getElementById('nav-btn-admin');
+
+            if (view === 'kitchen') {
+                kitchenView.classList.remove('hidden');
+                adminView.classList.add('hidden');
+
+                btnKitchen.className = "px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center space-x-2 bg-white/20 text-white shadow-sm border border-white/10";
+                btnAdmin.className = "px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center space-x-2 hover:bg-white/10 text-brand-100";
+            } else {
+                kitchenView.classList.add('hidden');
+                adminView.classList.remove('hidden');
+
+                btnAdmin.className = "px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center space-x-2 bg-white/20 text-white shadow-sm border border-white/10";
+                btnKitchen.className = "px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all flex items-center space-x-2 hover:bg-white/10 text-brand-100";
+
+                if (state.currentAdminUser) {
+                    refreshAdminDashboard();
+                }
+            }
+        }
+
+        // CUSTOM ITEM MODAL HANDLERS
+        let targetCategoryForCustom = "Alimentos Não Perecíveis";
+
+        function openCustomItemModal(category) {
+            targetCategoryForCustom = category;
+            document.getElementById('custom-cat').value = category;
+            document.getElementById('custom-item-modal').classList.remove('hidden');
+        }
+
+        function closeCustomItemModal() {
+            document.getElementById('custom-item-modal').classList.add('hidden');
+            document.getElementById('custom-name').value = '';
+            document.getElementById('custom-qty').value = '';
+            document.getElementById('custom-obs').value = '';
+        }
+
+        function handleAddCustomItem(e) {
+            e.preventDefault();
+            const name = document.getElementById('custom-name').value.trim();
+            const cat = document.getElementById('custom-cat').value;
+            const qty = parseFloat(document.getElementById('custom-qty').value);
+            const unit = document.getElementById('custom-unit').value;
+            const obs = document.getElementById('custom-obs').value.trim();
+
+            if (!name || isNaN(qty) || qty <= 0) {
+                alert('Preencha o nome e uma quantidade válida!');
+                return;
+            }
+
+            state.customItems.push({ name, category: cat, qty, unit, obs, isCustom: true });
+            renderCustomItemsList();
+            closeCustomItemModal();
+        }
+
+        function renderCustomItemsList() {
+            const container = document.getElementById('custom-items-list');
+            const section = document.getElementById('custom-items-section');
+
+            if (state.customItems.length === 0) {
+                section.classList.add('hidden');
+                return;
+            }
+
+            section.classList.remove('hidden');
+            container.innerHTML = '';
+
+            state.customItems.forEach((item, index) => {
+                const el = document.createElement('div');
+                el.className = "bg-indigo-50/60 border border-indigo-200 p-3 rounded-xl flex items-center justify-between";
+                el.innerHTML = `
+                    <div>
+                        <p class="font-bold text-xs text-indigo-900">${item.name}</p>
+                        <p class="text-[10px] text-indigo-700 font-semibold">${item.qty} ${item.unit} • ${item.category}</p>
+                        ${item.obs ? `<p class="text-[10px] italic text-indigo-600">${item.obs}</p>` : ''}
+                    </div>
+                    <button type="button" onclick="removeCustomItem(${index})" class="text-rose-500 hover:text-rose-700">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                `;
+                container.appendChild(el);
+            });
+            lucide.createIcons();
+        }
+
+        function removeCustomItem(index) {
+            state.customItems.splice(index, 1);
+            renderCustomItemsList();
+        }
+
+        // KITCHEN FORM SUBMISSION
+        let pendingRequestObject = null;
+
+        function handleFormSubmit(e) {
+            e.preventDefault();
+
+            const unit = document.getElementById('kitchen-unit-select').value;
+            const responsible = document.getElementById('kitchen-responsible').value.trim();
+            const notes = document.getElementById('kitchen-notes').value.trim();
+
+            if (!unit || !responsible) {
+                alert('Por favor, selecione a unidade e informe o nome do responsável.');
+                return;
+            }
+
+            // Gather standard items
+            const items = [];
+            const inputs = document.querySelectorAll('.prod-qty-input');
+            inputs.forEach(input => {
+                const val = parseFloat(input.value);
+                if (!isNaN(val) && val > 0) {
+                    items.push({
+                        name: input.getAttribute('data-prod-name'),
+                        category: input.getAttribute('data-cat'),
+                        qty: val,
+                        unit: input.getAttribute('data-unit')
+                    });
+                }
+            });
+
+            // Merge custom items
+            state.customItems.forEach(ci => {
+                items.push({
+                    name: ci.name,
+                    category: ci.category,
+                    qty: ci.qty,
+                    unit: ci.unit,
+                    obs: ci.obs
+                });
+            });
+
+            if (items.length === 0) {
+                alert('Atenção: Adicione a quantidade de pelo menos um produto para enviar a solicitação!');
+                return;
+            }
+
+            const protocol = `#ANH-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+            const datetime = document.getElementById('kitchen-datetime').value;
+
+            pendingRequestObject = {
+                id: 'req-' + Date.now(),
+                protocol,
+                unit,
+                responsible,
+                datetime,
+                status: 'Pendente',
+                notes,
+                adminNote: '',
+                items
+            };
+
+            // Show summary modal
+            document.getElementById('sum-unit-name').innerText = unit;
+            document.getElementById('sum-responsible-name').innerText = responsible;
+            document.getElementById('sum-items-count').innerText = items.length;
+
+            const sumListContainer = document.getElementById('sum-items-list');
+            sumListContainer.innerHTML = '';
+            items.forEach(it => {
+                const row = document.createElement('div');
+                row.className = 'flex justify-between items-center bg-white p-2.5 rounded-lg border border-slate-200 text-xs font-medium';
+                row.innerHTML = `
+                    <span>${it.name} <span class="text-[10px] text-slate-400">(${it.category})</span></span>
+                    <span class="font-bold text-brand-700 bg-brand-50 px-2 py-0.5 rounded">${it.qty} ${it.unit}</span>
+                `;
+                sumListContainer.appendChild(row);
+            });
+
+            if (notes) {
+                document.getElementById('sum-obs-box').classList.remove('hidden');
+                document.getElementById('sum-obs-text').innerText = notes;
+            } else {
+                document.getElementById('sum-obs-box').classList.add('hidden');
+            }
+
+            document.getElementById('summary-modal').classList.remove('hidden');
+        }
+
+        function closeSummaryModal() {
+            document.getElementById('summary-modal').classList.add('hidden');
+        }
+
+        function confirmAndSendRequest() {
+            if (!pendingRequestObject) return;
+
+            state.requests.unshift(pendingRequestObject);
+            state.audit.unshift({
+                timestamp: new Date().toLocaleString('pt-BR'),
+                user: pendingRequestObject.responsible,
+                action: 'Enviou Solicitação',
+                detail: `Unidade: ${pendingRequestObject.unit} | Protocolo: ${pendingRequestObject.protocol}`
+            });
+
+            saveState();
+
+            document.getElementById('summary-modal').classList.add('hidden');
+            document.getElementById('receipt-protocol-num').innerText = pendingRequestObject.protocol;
+            document.getElementById('receipt-modal').classList.remove('hidden');
+
+            // Reset form
+            resetKitchenForm();
+        }
+
+        function closeReceiptModal() {
+            document.getElementById('receipt-modal').classList.add('hidden');
+        }
+
+        function resetKitchenForm() {
+            document.getElementById('request-form').reset();
+            state.customItems = [];
+            renderCustomItemsList();
+            updateKitchenDateTime();
+        }
+
+        function printReceipt() {
+            window.print();
+        }
+
+        // ADMIN AUTHENTICATION
+        function handleAdminLogin(e) {
+            e.preventDefault();
+            const u = document.getElementById('login-username').value.trim();
+            const p = document.getElementById('login-password').value.trim();
+
+            const found = state.users.find(usr => usr.username === u && usr.pass === p && usr.active);
+
+            if (found) {
+                state.currentAdminUser = found;
+                sessionStorage.setItem('anh_session', JSON.stringify(found));
+                document.getElementById('login-error').classList.add('hidden');
+                document.getElementById('admin-login-screen').classList.add('hidden');
+                document.getElementById('admin-panel').classList.remove('hidden');
+                refreshAdminDashboard();
+            } else {
+                document.getElementById('login-error').classList.remove('hidden');
+            }
+        }
+
+        function handleAdminLogout() {
+            state.currentAdminUser = null;
+            sessionStorage.removeItem('anh_session');
+            document.getElementById('admin-panel').classList.add('hidden');
+            document.getElementById('admin-login-screen').classList.remove('hidden');
+        }
+
+        // ADMIN TABS NAVIGATION
+        function switchAdminTab(tabName) {
+            state.activeAdminTab = tabName;
+
+            // Update tab button styles
+            document.querySelectorAll('.adm-tab-btn').forEach(btn => {
+                btn.className = "adm-tab-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition";
+            });
+
+            const activeBtn = document.getElementById(`adm-tab-btn-${tabName}`);
+            if (activeBtn) {
+                activeBtn.className = "adm-tab-btn w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-brand-700 bg-brand-50 transition";
+            }
+
+            // Hide all contents
+            document.querySelectorAll('.adm-tab-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+
+            const activeContent = document.getElementById(`adm-tab-${tabName}`);
+            if (activeContent) {
+                activeContent.classList.remove('hidden');
+            }
+
+            if (tabName === 'dashboard') refreshAdminDashboard();
+            if (tabName === 'requests') renderAdminRequestsTable();
+            if (tabName === 'consolidation') renderConsolidatedProducts();
+            if (tabName === 'units') renderUnitsTable();
+            if (tabName === 'users') renderUsersTable();
+            if (tabName === 'audit') renderAuditLogs();
+        }
+
+        // DASHBOARD REFRESH & CHARTS
+        function refreshAdminDashboard() {
+            const reqs = state.requests;
+            const total = reqs.length;
+            const pending = reqs.filter(r => r.status === 'Pendente').length;
+            const approved = reqs.filter(r => r.status === 'Aprovada').length;
+            const analysis = reqs.filter(r => r.status === 'Em análise').length;
+            const separation = reqs.filter(r => r.status === 'Em separação').length;
+            const fulfilled = reqs.filter(r => r.status === 'Atendida').length;
+            const rejected = reqs.filter(r => r.status === 'Recusada').length;
+
+            let totalItemsCount = 0;
+            reqs.forEach(r => {
+                r.items.forEach(it => totalItemsCount += it.qty);
+            });
+
+            document.getElementById('dash-stat-total').innerText = total;
+            document.getElementById('dash-stat-pending').innerText = pending;
+            document.getElementById('dash-stat-approved').innerText = approved;
+            document.getElementById('dash-stat-items').innerText = totalItemsCount.toFixed(0);
+
+            document.getElementById('dash-sub-analysis').innerText = analysis;
+            document.getElementById('dash-sub-separation').innerText = separation;
+            document.getElementById('dash-sub-fulfilled').innerText = fulfilled;
+            document.getElementById('dash-sub-rejected').innerText = rejected;
+
+            renderCharts(pending, analysis, approved, separation, fulfilled, rejected);
+        }
+
+        function renderCharts(pending, analysis, approved, separation, fulfilled, rejected) {
+            // Chart 1: Status Doughnut
+            const ctxStatus = document.getElementById('chartStatus').getContext('2d');
+            if (state.chartStatusInst) state.chartStatusInst.destroy();
+
+            state.chartStatusInst = new Chart(ctxStatus, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Pendente', 'Em Análise', 'Aprovada', 'Em Separação', 'Atendida', 'Recusada'],
+                    datasets: [{
+                        data: [pending, analysis, approved, separation, fulfilled, rejected],
+                        backgroundColor: ['#f59e0b', '#3b82f6', '#10b981', '#8b5cf6', '#059669', '#ef4444']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+
+            // Chart 2: Unit Requests Bar
+            const unitCounts = {};
+            state.units.forEach(u => unitCounts[u.name] = 0);
+            state.requests.forEach(r => {
+                unitCounts[r.unit] = (unitCounts[r.unit] || 0) + 1;
+            });
+
+            const ctxUnits = document.getElementById('chartUnits').getContext('2d');
+            if (state.chartUnitsInst) state.chartUnitsInst.destroy();
+
+            state.chartUnitsInst = new Chart(ctxUnits, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(unitCounts),
+                    datasets: [{
+                        label: 'Solicitações Enviais',
+                        data: Object.values(unitCounts),
+                        backgroundColor: '#059669',
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                }
+            });
+        }
+
+        // REQUESTS TABLE & STATUS MANAGEMENT
+        function renderAdminRequestsTable() {
+            const unitFilter = document.getElementById('filter-unit').value;
+            const statusFilter = document.getElementById('filter-status').value;
+            const searchFilter = document.getElementById('filter-search').value.toLowerCase().trim();
+
+            const filtered = state.requests.filter(r => {
+                const matchUnit = (unitFilter === 'ALL' || r.unit === unitFilter);
+                const matchStatus = (statusFilter === 'ALL' || r.status === statusFilter);
+                const matchSearch = (r.protocol.toLowerCase().includes(searchFilter) || r.responsible.toLowerCase().includes(searchFilter));
+                return matchUnit && matchStatus && matchSearch;
+            });
+
+            const tbody = document.getElementById('requests-table-body');
+            tbody.innerHTML = '';
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-slate-400">Nenhuma solicitação encontrada.</td></tr>';
+                return;
+            }
+
+            filtered.forEach(r => {
+                const statusBadge = getStatusBadgeHtml(r.status);
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition border-b border-slate-100';
+                tr.innerHTML = `
+                    <td class="p-4 font-mono font-bold text-slate-800">${r.protocol}</td>
+                    <td class="p-4 font-semibold text-slate-700">${r.unit}</td>
+                    <td class="p-4 text-slate-600">${r.responsible}</td>
+                    <td class="p-4 text-slate-500 text-xs">${r.datetime}</td>
+                    <td class="p-4 text-center font-bold text-slate-700">${r.items.length}</td>
+                    <td class="p-4 text-center">${statusBadge}</td>
+                    <td class="p-4 text-right">
+                        <button onclick="openRequestDetailModal('${r.id}')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-lg shadow transition">
+                            Gerenciar
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function getStatusBadgeHtml(status) {
+            const styles = {
+                'Pendente': 'bg-amber-100 text-amber-800 border-amber-300',
+                'Em análise': 'bg-blue-100 text-blue-800 border-blue-300',
+                'Aprovada': 'bg-emerald-100 text-emerald-800 border-emerald-300',
+                'Em separação': 'bg-purple-100 text-purple-800 border-purple-300',
+                'Atendida': 'bg-green-100 text-green-800 border-green-300',
+                'Recusada': 'bg-rose-100 text-rose-800 border-rose-300'
+            };
+            return `<span class="px-2.5 py-1 rounded-full text-xs font-bold border ${styles[status] || 'bg-slate-100 text-slate-700'}">${status}</span>`;
+        }
+
+        function resetAdminFilters() {
+            document.getElementById('filter-unit').value = 'ALL';
+            document.getElementById('filter-status').value = 'ALL';
+            document.getElementById('filter-search').value = '';
+            renderAdminRequestsTable();
+        }
+
+        // REQUEST DETAIL MODAL
+        let activeSelectedRequestId = null;
+
+        function openRequestDetailModal(id) {
+            activeSelectedRequestId = id;
+            const req = state.requests.find(r => r.id === id);
+            if (!req) return;
+
+            document.getElementById('detail-protocol-title').innerText = `Detalhes ${req.protocol}`;
+            document.getElementById('detail-status-badge').innerHTML = getStatusBadgeHtml(req.status);
+            document.getElementById('detail-unit').innerText = req.unit;
+            document.getElementById('detail-resp').innerText = req.responsible;
+            document.getElementById('detail-date').innerText = req.datetime;
+
+            document.getElementById('detail-status-select').value = req.status;
+            document.getElementById('detail-admin-note').value = req.adminNote || '';
+
+            const listCont = document.getElementById('detail-products-list');
+            listCont.innerHTML = '';
+            req.items.forEach(it => {
+                const el = document.createElement('div');
+                el.className = 'flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-200';
+                el.innerHTML = `
+                    <div>
+                        <p class="font-bold text-slate-800 text-xs">${it.name}</p>
+                        <p class="text-[10px] text-slate-400 font-semibold">${it.category}</p>
+                    </div>
+                    <span class="font-black text-brand-700 text-sm">${it.qty} ${it.unit}</span>
+                `;
+                listCont.appendChild(el);
+            });
+
+            if (req.notes) {
+                document.getElementById('detail-kitchen-notes-box').classList.remove('hidden');
+                document.getElementById('detail-kitchen-notes').innerText = req.notes;
+            } else {
+                document.getElementById('detail-kitchen-notes-box').classList.add('hidden');
+            }
+
+            document.getElementById('request-detail-modal').classList.remove('hidden');
+        }
+
+        function closeRequestDetailModal() {
+            document.getElementById('request-detail-modal').classList.add('hidden');
+        }
+
+        function saveStatusUpdate() {
+            if (!activeSelectedRequestId) return;
+            const req = state.requests.find(r => r.id === activeSelectedRequestId);
+            if (!req) return;
+
+            const oldStatus = req.status;
+            const newStatus = document.getElementById('detail-status-select').value;
+            const adminNote = document.getElementById('detail-admin-note').value.trim();
+
+            req.status = newStatus;
+            req.adminNote = adminNote;
+
+            state.audit.unshift({
+                timestamp: new Date().toLocaleString('pt-BR'),
+                user: state.currentAdminUser ? state.currentAdminUser.username : 'admin',
+                action: 'Alterou Status',
+                detail: `Protocolo ${req.protocol}: de ${oldStatus} para ${newStatus}. Obs: ${adminNote}`
+            });
+
+            saveState();
+            closeRequestDetailModal();
+            renderAdminRequestsTable();
+            refreshAdminDashboard();
+        }
+
+        function printSingleRequest() {
+            window.print();
+        }
+
+        // CONSOLIDATION TAB
+        function renderConsolidatedProducts() {
+            const catFilter = document.getElementById('consolidation-cat-filter').value;
+            const grid = document.getElementById('consolidated-products-grid');
+            grid.innerHTML = '';
+
+            // Aggregate data
+            const map = {}; // name -> { total, category, unit, breakdown: { unitName: qty } }
+
+            state.requests.forEach(r => {
+                r.items.forEach(it => {
+                    if (catFilter !== 'ALL' && it.category !== catFilter) return;
+
+                    if (!map[it.name]) {
+                        map[it.name] = { total: 0, category: it.category, unit: it.unit, breakdown: {} };
+                    }
+                    map[it.name].total += it.qty;
+                    map[it.name].breakdown[r.unit] = (map[it.name].breakdown[r.unit] || 0) + it.qty;
+                });
+            });
+
+            const keys = Object.keys(map);
+            if (keys.length === 0) {
+                grid.innerHTML = '<p class="text-slate-400 text-xs text-center col-span-2 py-8">Nenhum produto consolidado para exibição.</p>';
+                return;
+            }
+
+            keys.forEach(prodName => {
+                const item = map[prodName];
+                const card = document.createElement('div');
+                card.className = 'bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3';
+
+                let breakdownHtml = '';
+                for (const [uName, uQty] of Object.entries(item.breakdown)) {
+                    breakdownHtml += `
+                        <div class="flex justify-between items-center text-xs py-1 border-b border-slate-100 last:border-0">
+                            <span class="text-slate-600 font-medium">• ${uName}:</span>
+                            <span class="font-bold text-slate-800">${uQty} ${item.unit}</span>
+                        </div>
+                    `;
+                }
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h4 class="font-black text-slate-800 text-sm">${prodName}</h4>
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">${item.category}</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-xs text-slate-400 block font-bold">TOTAL SOLICITADO</span>
+                            <span class="text-lg font-black text-brand-700">${item.total} ${item.unit}</span>
+                        </div>
+                    </div>
+                    <div class="bg-white p-3 rounded-xl border border-slate-200/80">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase mb-1">Distribuição por Unidade:</p>
+                        ${breakdownHtml}
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // REPORTS & EXPORT
+        function exportReportExcel() {
+            const dataToExport = [];
+            state.requests.forEach(r => {
+                r.items.forEach(it => {
+                    dataToExport.push({
+                        'Protocolo': r.protocol,
+                        'Unidade': r.unit,
+                        'Responsável': r.responsible,
+                        'Data/Hora': r.datetime,
+                        'Status': r.status,
+                        'Categoria': it.category,
+                        'Produto': it.name,
+                        'Quantidade': it.qty,
+                        'Unidade Medida': it.unit,
+                        'Obs Cozinha': r.notes || '',
+                        'Obs Admin': r.adminNote || ''
+                    });
+                });
+            });
+
+            const ws = XLSX.utils.json_to_sheet(dataToExport);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Relatório Suprimentos");
+            XLSX.writeFile(wb, `Relatorio_Novo_Horizonte_${new Date().toISOString().slice(0,10)}.xlsx`);
+        }
+
+        function printReportPDF() {
+            window.print();
+        }
+
+        // UNITS MANAGEMENT
+        function renderUnitsTable() {
+            const tbody = document.getElementById('units-table-body');
+            tbody.innerHTML = '';
+            state.units.forEach(u => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-slate-100 hover:bg-slate-50';
+                tr.innerHTML = `
+                    <td class="p-3 font-bold text-slate-800">${u.name}</td>
+                    <td class="p-3 text-slate-600">${u.address || '—'}</td>
+                    <td class="p-3">
+                        <span class="px-2 py-0.5 rounded-full text-xs font-bold ${u.active ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
+                            ${u.active ? 'Ativa' : 'Inativa'}
+                        </span>
+                    </td>
+                    <td class="p-3 text-right space-x-2">
+                        <button onclick="toggleUnitActive('${u.id}')" class="text-xs font-bold ${u.active ? 'text-amber-600' : 'text-emerald-600'}">
+                            ${u.active ? 'Desativar' : 'Ativar'}
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function openUnitModal() {
+            document.getElementById('unit-modal-title').innerText = 'Cadastrar Nova Unidade';
+            document.getElementById('unit-id-input').value = '';
+            document.getElementById('unit-name-input').value = '';
+            document.getElementById('unit-address-input').value = '';
+            document.getElementById('unit-modal').classList.remove('hidden');
+        }
+
+        function closeUnitModal() {
+            document.getElementById('unit-modal').classList.add('hidden');
+        }
+
+        function handleSaveUnit(e) {
+            e.preventDefault();
+            const name = document.getElementById('unit-name-input').value.trim();
+            const address = document.getElementById('unit-address-input').value.trim();
+
+            if (!name) return;
+
+            state.units.push({
+                id: 'u-' + Date.now(),
+                name,
+                address,
+                active: true
+            });
+
+            saveState();
+            populateUnitSelects();
+            renderUnitsTable();
+            closeUnitModal();
+        }
+
+        function toggleUnitActive(id) {
+            const u = state.units.find(item => item.id === id);
+            if (u) {
+                u.active = !u.active;
+                saveState();
+                populateUnitSelects();
+                renderUnitsTable();
+            }
+        }
+
+        // USERS MANAGEMENT
+        function renderUsersTable() {
+            const tbody = document.getElementById('users-table-body');
+            tbody.innerHTML = '';
+            state.users.forEach(usr => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-slate-100 hover:bg-slate-50';
+                tr.innerHTML = `
+                    <td class="p-3">
+                        <p class="font-bold text-slate-800">${usr.fullname}</p>
+                        <p class="text-xs font-mono text-slate-400">@${usr.username}</p>
+                    </td>
+                    <td class="p-3 text-xs font-semibold text-slate-600">${usr.role}</td>
+                    <td class="p-3">
+                        <span class="px-2 py-0.5 rounded-full text-xs font-bold ${usr.active ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
+                            ${usr.active ? 'Ativo' : 'Bloqueado'}
+                        </span>
+                    </td>
+                    <td class="p-3 text-right">
+                        <button onclick="toggleUserActive('${usr.id}')" class="text-xs font-bold text-slate-600 hover:text-slate-900">
+                            ${usr.active ? 'Bloquear' : 'Desbloquear'}
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function openUserModal() {
+            document.getElementById('user-modal-title').innerText = 'Cadastrar Novo Administrador';
+            document.getElementById('user-fullname-input').value = '';
+            document.getElementById('user-name-input').value = '';
+            document.getElementById('user-pass-input').value = '';
+            document.getElementById('user-modal').classList.remove('hidden');
+        }
+
+        function closeUserModal() {
+            document.getElementById('user-modal').classList.add('hidden');
+        }
+
+        function handleSaveUser(e) {
+            e.preventDefault();
+            const fullname = document.getElementById('user-fullname-input').value.trim();
+            const username = document.getElementById('user-name-input').value.trim();
+            const pass = document.getElementById('user-pass-input').value.trim();
+
+            if (!fullname || !username || !pass) return;
+
+            state.users.push({
+                id: 'usr-' + Date.now(),
+                fullname,
+                username,
+                pass,
+                role: 'Administrador',
+                active: true
+            });
+
+            saveState();
+            renderUsersTable();
+            closeUserModal();
+        }
+
+        function toggleUserActive(id) {
+            const usr = state.users.find(u => u.id === id);
+            if (usr) {
+                usr.active = !usr.active;
+                saveState();
+                renderUsersTable();
+            }
+        }
+
+        // AUDIT LOGS
+        function renderAuditLogs() {
+            const container = document.getElementById('audit-log-container');
+            container.innerHTML = '';
+            state.audit.forEach(log => {
+                const item = document.createElement('div');
+                item.className = 'bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs flex items-start space-x-3';
+                item.innerHTML = `
+                    <div class="bg-brand-100 text-brand-800 p-2 rounded-lg font-bold shrink-0">
+                        <i data-lucide="clock" class="w-4 h-4"></i>
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-slate-800">${log.action}</span>
+                            <span class="text-[10px] text-slate-400 font-mono">${log.timestamp}</span>
+                        </div>
+                        <p class="text-slate-600 mt-0.5">Por: <strong>${log.user}</strong></p>
+                        <p class="text-slate-500 italic mt-0.5">${log.detail}</p>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+            lucide.createIcons();
+        }
+
+        // DOCS MODAL HANDLERS
+        function openDocsModal() {
+            document.getElementById('docs-modal').classList.remove('hidden');
+        }
+
+        function closeDocsModal() {
+            document.getElementById('docs-modal').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
