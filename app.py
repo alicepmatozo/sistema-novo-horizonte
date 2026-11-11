@@ -1,159 +1,136 @@
-import sqlite3
-import random
+import os, secrets, hmac, requests
 from datetime import datetime
+from functools import wraps
 from flask import Flask, render_template, request, jsonify, session
-from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-app.secret_key = 'novo_horizonte_secret_key_prod'
+app.secret_key = os.environ.get("SECRET_KEY", "")
+app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax",
+                  SESSION_COOKIE_SECURE=bool(os.environ.get("VERCEL")))
 
-DATABASE = 'banco.db'
+SB_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
+SB_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
+STATUS = ["Pendente", "Em análise", "Aprovada", "Em separação", "Atendida", "Recusada"]
 
-def get_db_connection():
-    conn = sqlite3.connect(DATABASE)
-    conn.row_factory = sqlite3.Row
-    return conn
 
-# Inicializar o banco de dados e criar tabelas automaticamente
-def init_db():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    # Criar tabelas
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS unidades (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nome TEXT NOT NULL UNIQUE,
-            ativa BOOLEAN DEFAULT 1,
-            criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
+def sb(method, table, params=None, body=None, prefer=None):
+    h = {"apikey": SB_KEY, "Authorization": f"Bearer {SB_KEY}", "Content-Type": "application/json"}
+    if prefer:
+        h["Prefer"] = prefer
+    return requests.request(method, f"{SB_URL}/rest/v1/{table}", headers=h,
+                            params=params, json=body, timeout=15)
 
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS usuarios (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nome TEXT NOT NULL,
-            usuario TEXT NOT NULL UNIQUE,
-            senha_hash TEXT NOT NULL,
-            cargo TEXT DEFAULT 'Administrador',
-            bloqueado BOOLEAN DEFAULT 0,
-            criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
 
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS solicitacoes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            protocolo TEXT NOT NULL UNIQUE,
-            unidade_id INTEGER NOT NULL,
-            unidade_nome TEXT NOT NULL,
-            responsavel TEXT NOT NULL,
-            data_solicitacao DATETIME DEFAULT CURRENT_TIMESTAMP,
-            status TEXT DEFAULT 'Pendente',
-            observacoes_gerais TEXT,
-            observacoes_admin TEXT,
-            FOREIGN KEY (unidade_id) REFERENCES unidades(id)
-        )
-    ''')
+def login_required(f):
+    @wraps(f)
+    def w(*a, **k):
+        if not session.get("admin"):
+            return jsonify(error="Não autorizado."), 401
+        return f(*a, **k)
+    return w
 
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS solicitacao_itens (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            solicitacao_id INTEGER NOT NULL,
-            categoria TEXT NOT NULL,
-            produto TEXT NOT NULL,
-            quantidade REAL NOT NULL,
-            unidade_medida TEXT NOT NULL,
-            observacao TEXT,
-            FOREIGN KEY (solicitacao_id) REFERENCES solicitacoes(id) ON DELETE CASCADE
-        )
-    ''')
 
-    # Inserir unidades e admin padrão se não existirem
-    cursor.execute("INSERT OR IGNORE INTO unidades (id, nome) VALUES (1, 'Unidade 1 - Central')")
-    cursor.execute("INSERT OR IGNORE INTO unidades (id, nome) VALUES (2, 'Unidade 2 - Casa Lar')")
-    cursor.execute("INSERT OR IGNORE INTO unidades (id, nome) VALUES (3, 'Unidade 3 - Centro Dia')")
+@app.errorhandler(requests.RequestException)
+def erro_rede(e):
+    return jsonify(error="Falha ao falar com o banco de dados."), 502
 
-    senha_admin_hash = generate_password_hash('admin123')
-    cursor.execute("""
-        INSERT OR IGNORE INTO usuarios (id, nome, usuario, senha_hash, cargo) 
-        VALUES (1, 'Administrador Geral', 'admin', ?, 'Administrador')
-    """, (senha_admin_hash,))
 
-    conn.commit()
-    conn.close()
-
-# Executa a inicialização do banco
-init_db()
-
-# --- ROTAS DA APLICAÇÃO ---
-
-@app.route('/')
+@app.route("/")
 def index():
-    return render_template('index.html')
+    return render_template("index.html")
 
-@app.route('/api/unidades', methods=['GET'])
-def get_unidades():
-    conn = get_db_connection()
-    unidades = conn.execute("SELECT id, nome FROM unidades WHERE ativa = 1 ORDER BY nome ASC").fetchall()
-    conn.close()
-    return jsonify([dict(u) for u in unidades])
 
-@app.route('/api/solicitacoes', methods=['POST'])
-def criar_solicitacao():
-    dados = request.get_json()
-    unidade_id = dados.get('unidade_id')
-    responsavel = dados.get('responsavel')
-    itens = dados.get('itens', [])
-    obs_gerais = dados.get('observacoes_gerais', '')
-    
-    if not unidade_id or not responsavel or not itens:
-        return jsonify({'error': 'Unidade, responsável e itens são obrigatórios.'}), 400
-        
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    unidade = cursor.execute("SELECT nome FROM unidades WHERE id = ?", (unidade_id,)).fetchone()
-    if not unidade:
-        conn.close()
-        return jsonify({'error': 'Unidade inválida.'}), 400
-    
-    protocolo = f"NH-{datetime.now().strftime('%Y%m%d')}-{random.randint(1000, 9999)}"
-    
-    cursor.execute("""
-        INSERT INTO solicitacoes (protocolo, unidade_id, unidade_nome, responsavel, observacoes_gerais)
-        VALUES (?, ?, ?, ?, ?)
-    """, (protocolo, unidade_id, unidade['nome'], responsavel, obs_gerais))
-    
-    solicitacao_id = cursor.lastrowid
-    
-    for item in itens:
-        cursor.execute("""
-            INSERT INTO solicitacao_itens (solicitacao_id, categoria, produto, quantidade, unidade_medida, observacao)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (solicitacao_id, item['categoria'], item['produto'], item['quantidade'], item['unidade_medida'], item.get('observacao', '')))
-        
-    conn.commit()
-    conn.close()
-    
-    return jsonify({'message': 'Solicitação enviada com sucesso!', 'protocolo': protocolo}), 201
+@app.route("/api/unidades")
+def unidades():
+    r = sb("GET", "unidades", {"select": "id,nome", "ativa": "eq.true", "order": "nome"})
+    return (jsonify(r.json()), 200) if r.ok else (jsonify(error="Erro no banco."), 502)
 
-@app.route('/api/login', methods=['POST'])
+
+@app.route("/api/solicitacoes", methods=["POST"])
+def criar():
+    d = request.get_json(silent=True) or {}
+    resp = str(d.get("responsavel", "")).strip()[:100]
+    itens_in = d.get("itens") or []
+    try:
+        uid = int(d.get("unidade_id"))
+    except (TypeError, ValueError):
+        return jsonify(error="Unidade inválida."), 400
+    if not resp or not itens_in or len(itens_in) > 100:
+        return jsonify(error="Informe responsável e ao menos um item."), 400
+
+    itens = []
+    for i in itens_in:
+        try:
+            q = float(i.get("quantidade"))
+        except (TypeError, ValueError):
+            return jsonify(error="Quantidade inválida."), 400
+        cat, prod, um = (str(i.get(k, "")).strip() for k in ("categoria", "produto", "unidade_medida"))
+        if q <= 0 or q > 99999999 or not (cat and prod and um):
+            return jsonify(error="Preencha produto, quantidade e medida de todos os itens."), 400
+        itens.append({"categoria": cat[:50], "produto": prod[:100], "quantidade": q,
+                      "unidade_medida": um[:20], "observacao": str(i.get("observacao", ""))[:255]})
+
+    u = sb("GET", "unidades", {"select": "nome", "id": f"eq.{uid}", "ativa": "eq.true"})
+    if not u.ok or not u.json():
+        return jsonify(error="Unidade inválida."), 400
+
+    for _ in range(3):
+        proto = f"NH-{datetime.now():%Y%m%d}-{secrets.token_hex(3).upper()}"
+        r = sb("POST", "solicitacoes", body={
+            "protocolo": proto, "unidade_id": uid, "unidade_nome": u.json()[0]["nome"],
+            "responsavel": resp, "observacoes_gerais": str(d.get("observacoes_gerais", ""))[:1000]},
+            prefer="return=representation")
+        if r.status_code != 409:
+            break
+    if not r.ok:
+        return jsonify(error="Não foi possível salvar."), 502
+    sid = r.json()[0]["id"]
+    ri = sb("POST", "solicitacao_itens", body=[dict(it, solicitacao_id=sid) for it in itens])
+    if not ri.ok:
+        sb("DELETE", "solicitacoes", {"id": f"eq.{sid}"})
+        return jsonify(error="Não foi possível salvar os itens."), 502
+    return jsonify(message="Solicitação enviada!", protocolo=proto), 201
+
+
+@app.route("/api/login", methods=["POST"])
 def login():
-    dados = request.get_json()
-    usuario = dados.get('usuario')
-    senha = dados.get('senha')
-    
-    conn = get_db_connection()
-    user = conn.execute("SELECT * FROM usuarios WHERE usuario = ? AND bloqueado = 0", (usuario,)).fetchone()
-    conn.close()
-    
-    if user and check_password_hash(user['senha_hash'], senha):
-        session['user_id'] = user['id']
-        session['user_name'] = user['nome']
-        return jsonify({'message': 'Login realizado com sucesso', 'usuario': user['nome']})
-    
-    return jsonify({'error': 'Usuário ou senha inválidos.'}), 401
+    d = request.get_json(silent=True) or {}
+    ok_u = hmac.compare_digest(str(d.get("usuario", "")), os.environ.get("ADMIN_USER", "\0"))
+    ok_s = hmac.compare_digest(str(d.get("senha", "")), os.environ.get("ADMIN_PASSWORD", "\0"))
+    if ok_u and ok_s:
+        session["admin"] = True
+        return jsonify(message="ok")
+    return jsonify(error="Usuário ou senha inválidos."), 401
 
-if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+
+@app.route("/api/logout", methods=["POST"])
+def logout():
+    session.clear()
+    return jsonify(message="ok")
+
+
+@app.route("/api/admin/solicitacoes")
+@login_required
+def listar():
+    r = sb("GET", "solicitacoes", {"select": "*,solicitacao_itens(*)",
+                                   "order": "data_solicitacao.desc", "limit": "200"})
+    return (jsonify(r.json()), 200) if r.ok else (jsonify(error="Erro no banco."), 502)
+
+
+@app.route("/api/admin/solicitacoes/<int:sid>", methods=["PATCH"])
+@login_required
+def atualizar(sid):
+    d = request.get_json(silent=True) or {}
+    upd = {}
+    if d.get("status") in STATUS:
+        upd["status"] = d["status"]
+    if "observacoes_admin" in d:
+        upd["observacoes_admin"] = str(d["observacoes_admin"])[:1000]
+    if not upd:
+        return jsonify(error="Nada para atualizar."), 400
+    r = sb("PATCH", "solicitacoes", {"id": f"eq.{sid}"}, upd)
+    return (jsonify(message="ok"), 200) if r.ok else (jsonify(error="Erro no banco."), 502)
+
+
+if __name__ == "__main__":
+    app.run(debug=False, port=5000)
